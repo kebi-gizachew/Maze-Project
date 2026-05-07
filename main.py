@@ -2,26 +2,21 @@ import pygame
 import random
 import sys
 
-# ---------------- SETTINGS ----------------
 R, C = 20, 20
 CELL = 25
 WIDTH, HEIGHT = C * CELL, R * CELL
 FPS = 60
 
-# ---------------- WALL STRUCTURE ----------------
-# 1 = wall exists, 0 = removed
 northWall = [[1 for _ in range(C)] for _ in range(R)]
 eastWall  = [[1 for _ in range(C)] for _ in range(R)]
 
 visited = [[False for _ in range(C)] for _ in range(R)]
 
-# ---------------- PYGAME SETUP ----------------
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Maze Generator + Solver")
 clock = pygame.time.Clock()
 
-# ---------------- DRAW MAZE ----------------
 def draw_maze(path=[], dead=[]):
     screen.fill((255, 255, 255))
 
@@ -45,7 +40,6 @@ def draw_maze(path=[], dead=[]):
             if i == R - 1:
                 pygame.draw.line(screen, (0, 0, 0), (x, y + CELL), (x + CELL, y + CELL), 2)
 
-    # draw solver path
     for (i, j) in path:
         pygame.draw.rect(screen, (255, 0, 0), (j * CELL + 5, i * CELL + 5, CELL - 10, CELL - 10))
 
@@ -54,7 +48,6 @@ def draw_maze(path=[], dead=[]):
 
     pygame.display.update()
 
-# ---------------- MAZE GENERATION (DFS STACK MOUSE) ----------------
 def generate_maze():
     stack = []
 
@@ -167,13 +160,11 @@ def solve_maze(start, end):
 
     return path
 
-# ---------------- RANDOM START & END ----------------
 def get_start_end():
     start = (0, random.randint(0, C - 1))
     end = (R - 1, random.randint(0, C - 1))
     return start, end
 
-# ---------------- MAIN ----------------
 def main():
     generate_maze()
 
