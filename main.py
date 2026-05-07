@@ -1,3 +1,4 @@
+import random
 import pygame
 from pygame.locals import *
 from OpenGL.GL import *
@@ -23,7 +24,61 @@ pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | OPENGL)
 glClearColor(0, 0, 0, 1)
 
 running = True
-import random
+def draw_mouse(row, col):
+
+    x = -1 + col * CELL_SIZE + CELL_SIZE / 2
+    y = 1 - row * CELL_SIZE - CELL_SIZE / 2
+
+    glPointSize(10)
+
+    glBegin(GL_POINTS)
+
+    glColor3f(1, 0, 0)
+
+    glVertex2f(x, y)
+
+    glEnd()
+def remove_wall(direction, row, col):
+
+    global northWall
+    global eastWall
+
+    if direction == "UP":
+        northWall[row][col] = 0
+
+    elif direction == "DOWN":
+        northWall[row + 1][col] = 0
+
+    elif direction == "LEFT":
+        eastWall[row][col] = 0
+
+    elif direction == "RIGHT":
+        eastWall[row][col + 1] = 0
+
+def generate_step():
+
+    global current_row
+    global current_col
+
+    neighbors = get_neighbors(current_row, current_col)
+
+    if neighbors:
+
+        direction, nr, nc = random.choice(neighbors)
+
+        stack.append((current_row, current_col))
+
+        remove_wall(direction, current_row, current_col)
+
+        current_row = nr
+        current_col = nc
+
+        visited[current_row][current_col] = True
+
+    elif stack:
+
+        current_row, current_col = stack.pop()
+
 
 def get_neighbors(row, col):
 
@@ -98,6 +153,8 @@ def draw_line(x1, y1, x2, y2):
     glVertex2f(x2, y2)
 
     glEnd()
+running = True
+
 while running:
 
     for event in pygame.event.get():
@@ -105,11 +162,20 @@ while running:
             running = False
 
     glClear(GL_COLOR_BUFFER_BIT)
-    draw_grid()
+
+    generate_step()
+
+    draw_maze()
+
+    draw_mouse(current_row, current_col)
+
     pygame.display.flip()
-# LEFT BORDER
-draw_line(-1, -1, -1, 1)
-# BOTTOM BORDER
-draw_line(-1, -1, 1, -1)
+
+draw_line()
+draw_maze()
+draw_mouse()
+get_neighbors()
+remove_wall()
+generate_step()
 
 pygame.quit()
