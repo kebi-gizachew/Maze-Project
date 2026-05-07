@@ -10,8 +10,12 @@ COLS = 20
 CELL_SIZE = 2 / ROWS
 northWall = [[1 for _ in range(COLS)] for _ in range(ROWS)]
 eastWall = [[1 for _ in range(COLS)] for _ in range(ROWS)]
+stack = []
+current_row = 0
+current_col = 0
 
 visited = [[False for _ in range(COLS)] for _ in range(ROWS)]
+visited[current_row][current_col] = True
 pygame.init()
 
 pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | OPENGL)
@@ -19,6 +23,30 @@ pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | OPENGL)
 glClearColor(0, 0, 0, 1)
 
 running = True
+import random
+
+def get_neighbors(row, col):
+
+    neighbors = []
+
+    # UP
+    if row > 0 and not visited[row - 1][col]:
+        neighbors.append(("UP", row - 1, col))
+
+    # DOWN
+    if row < ROWS - 1 and not visited[row + 1][col]:
+        neighbors.append(("DOWN", row + 1, col))
+
+    # LEFT
+    if col > 0 and not visited[row][col - 1]:
+        neighbors.append(("LEFT", row, col - 1))
+
+    # RIGHT
+    if col < COLS - 1 and not visited[row][col + 1]:
+        neighbors.append(("RIGHT", row, col + 1))
+
+    return neighbors
+
 def draw_maze():
 
     for row in range(ROWS):
