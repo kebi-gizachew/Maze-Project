@@ -1,181 +1,195 @@
-import random
 import pygame
-from pygame.locals import *
-from OpenGL.GL import *
-from OpenGL.GLU import *
+import random
+import sys
 
-WIDTH = 800
-HEIGHT = 800
-ROWS = 20
-COLS = 20
-CELL_SIZE = 2 / ROWS
-northWall = [[1 for _ in range(COLS)] for _ in range(ROWS)]
-eastWall = [[1 for _ in range(COLS)] for _ in range(ROWS)]
-stack = []
-current_row = 0
-current_col = 0
+# ---------------- SETTINGS ----------------
+R, C = 20, 20
+CELL = 25
+WIDTH, HEIGHT = C * CELL, R * CELL
+FPS = 60
 
-visited = [[False for _ in range(COLS)] for _ in range(ROWS)]
-visited[current_row][current_col] = True
+# ---------------- WALL STRUCTURE ----------------
+# 1 = wall exists, 0 = removed
+northWall = [[1 for _ in range(C)] for _ in range(R)]
+eastWall  = [[1 for _ in range(C)] for _ in range(R)]
+
+visited = [[False for _ in range(C)] for _ in range(R)]
+
+# ---------------- PYGAME SETUP ----------------
 pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Maze Generator + Solver")
+clock = pygame.time.Clock()
 
-pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | OPENGL)
+# ---------------- DRAW MAZE ----------------
+def draw_maze(path=[], dead=[]):
+    screen.fill((255, 255, 255))
 
-glClearColor(0, 0, 0, 1)
+    for i in range(R):
+        for j in range(C):
+            x, y = j * CELL, i * CELL
 
-running = True
-def draw_mouse(row, col):
+            # north wall
+            if northWall[i][j]:
+                pygame.draw.line(screen, (0, 0, 0), (x, y), (x + CELL, y), 2)
 
-    x = -1 + col * CELL_SIZE + CELL_SIZE / 2
-    y = 1 - row * CELL_SIZE - CELL_SIZE / 2
+            # east wall
+            if eastWall[i][j]:
+                pygame.draw.line(screen, (0, 0, 0), (x + CELL, y), (x + CELL, y + CELL), 2)
 
-    glPointSize(10)
+            # left boundary
+            if j == 0:
+                pygame.draw.line(screen, (0, 0, 0), (x, y), (x, y + CELL), 2)
 
-    glBegin(GL_POINTS)
+            # bottom boundary
+            if i == R - 1:
+                pygame.draw.line(screen, (0, 0, 0), (x, y + CELL), (x + CELL, y + CELL), 2)
 
-    glColor3f(1, 0, 0)
+    # draw solver path
+    for (i, j) in path:
+        pygame.draw.rect(screen, (255, 0, 0), (j * CELL + 5, i * CELL + 5, CELL - 10, CELL - 10))
 
-    glVertex2f(x, y)
+    for (i, j) in dead:
+        pygame.draw.rect(screen, (0, 0, 255), (j * CELL + 8, i * CELL + 8, CELL - 16, CELL - 16))
 
-    glEnd()
-def remove_wall(direction, row, col):
+    pygame.display.update()
 
-    global northWall
-    global eastWall
+# ---------------- MAZE GENERATION (DFS STACK MOUSE) ----------------
+def generate_maze():
+    stack = []
 
-    if direction == "UP":
-        northWall[row][col] = 0
+    ci, cj = random.randint(0, R - 1), random.randint(0, C - 1)
+    visited[ci][cj] = True
+    stack.append((ci, cj))
 
-    elif direction == "DOWN":
-        northWall[row + 1][col] = 0
+    while stack:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
-    elif direction == "LEFT":
-        eastWall[row][col] = 0
+        i, j = stack[-1]
 
-    elif direction == "RIGHT":
-        eastWall[row][col + 1] = 0
+        neighbors = []
 
-def generate_step():
+        # UP
+        if i > 0 and not visited[i - 1][j]:
+            neighbors.append((i - 1, j, "N"))
 
-    global current_row
-    global current_col
+        # DOWN
+        if i < R - 1 and not visited[i + 1][j]:
+            neighbors.append((i + 1, j, "N_down"))
 
-    neighbors = get_neighbors(current_row, current_col)
+        # LEFT
+        if j > 0 and not visited[i][j - 1]:
+            neighbors.append((i, j - 1, "E_left"))
 
-    if neighbors:
+        # RIGHT
+        if j < C - 1 and not visited[i][j + 1]:
+            neighbors.append((i, j + 1, "E"))
 
-        direction, nr, nc = random.choice(neighbors)
+        if neighbors:
+            ni, nj, direction = random.choice(neighbors)
+            visited[ni][nj] = True
+            stack.append((ni, nj))
 
-        stack.append((current_row, current_col))
+            # remove walls
+            if direction == "N":
+                northWall[i][j] = 0
+            elif direction == "N_down":
+                northWall[i + 1][j] = 0
+            elif direction == "E":
+                eastWall[i][j] = 0
+            elif direction == "E_left":
+                eastWall[i][j - 1] = 0
 
-        remove_wall(direction, current_row, current_col)
+        else:
+            stack.pop()
 
-        current_row = nr
-        current_col = nc
+        draw_maze()
+        clock.tick(FPS)
 
-        visited[current_row][current_col] = True
+# ---------------- SOLVER (BACKTRACKING MOUSE) ----------------
+def solve_maze(start, end):
+    stack = [start]
+    visited2 = [[False for _ in range(C)] for _ in range(R)]
+    path = []
+    dead = []
 
-    elif stack:
+    while stack:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
-        current_row, current_col = stack.pop()
+        i, j = stack[-1]
+        visited2[i][j] = True
+        path.append((i, j))
 
+        if (i, j) == end:
+            return path
 
-def get_neighbors(row, col):
+        moved = False
 
-    neighbors = []
+        # try directions randomly
+        dirs = [(1,0), (-1,0), (0,1), (0,-1)]
+        random.shuffle(dirs)
 
-    # UP
-    if row > 0 and not visited[row - 1][col]:
-        neighbors.append(("UP", row - 1, col))
+        for di, dj in dirs:
+            ni, nj = i + di, j + dj
 
-    # DOWN
-    if row < ROWS - 1 and not visited[row + 1][col]:
-        neighbors.append(("DOWN", row + 1, col))
+            if 0 <= ni < R and 0 <= nj < C and not visited2[ni][nj]:
 
-    # LEFT
-    if col > 0 and not visited[row][col - 1]:
-        neighbors.append(("LEFT", row, col - 1))
+                # check walls
+                if di == -1 and northWall[i][j] == 0:
+                    stack.append((ni, nj))
+                    moved = True
+                    break
+                elif di == 1 and northWall[i + 1][j] == 0:
+                    stack.append((ni, nj))
+                    moved = True
+                    break
+                elif dj == 1 and eastWall[i][j] == 0:
+                    stack.append((ni, nj))
+                    moved = True
+                    break
+                elif dj == -1 and eastWall[i][j - 1] == 0:
+                    stack.append((ni, nj))
+                    moved = True
+                    break
 
-    # RIGHT
-    if col < COLS - 1 and not visited[row][col + 1]:
-        neighbors.append(("RIGHT", row, col + 1))
+        if not moved:
+            dead.append(stack.pop())
+            path.append(dead[-1])
 
-    return neighbors
+        draw_maze(path, dead)
+        clock.tick(FPS)
 
-def draw_maze():
+    return path
 
-    for row in range(ROWS):
+# ---------------- RANDOM START & END ----------------
+def get_start_end():
+    start = (0, random.randint(0, C - 1))
+    end = (R - 1, random.randint(0, C - 1))
+    return start, end
 
-        for col in range(COLS):
+# ---------------- MAIN ----------------
+def main():
+    generate_maze()
 
-            x = -1 + col * CELL_SIZE
-            y = 1 - row * CELL_SIZE
+    start, end = get_start_end()
 
-            # NORTH WALL
-            if northWall[row][col]:
+    print("Start:", start, "End:", end)
 
-                draw_line(
-                    x,
-                    y,
-                    x + CELL_SIZE,
-                    y
-                )
+    solve_maze(start, end)
 
-            # EAST WALL
-            if eastWall[row][col]:
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
 
-                draw_line(
-                    x + CELL_SIZE,
-                    y,
-                    x + CELL_SIZE,
-                    y - CELL_SIZE
-                )
-def draw_grid():
+        clock.tick(30)
 
-    for row in range(ROWS + 1):
-
-        y = 1 - row * CELL_SIZE
-
-        draw_line(-1, y, 1, y)
-
-    for col in range(COLS + 1):
-
-        x = -1 + col * CELL_SIZE
-
-        draw_line(x, -1, x, 1)
-def draw_line(x1, y1, x2, y2):
-
-    glBegin(GL_LINES)
-
-    glColor3f(1, 1, 1)
-
-    glVertex2f(x1, y1)
-    glVertex2f(x2, y2)
-
-    glEnd()
-running = True
-
-while running:
-
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            running = False
-
-    glClear(GL_COLOR_BUFFER_BIT)
-
-    generate_step()
-
-    draw_maze()
-
-    draw_mouse(current_row, current_col)
-
-    pygame.display.flip()
-
-draw_line()
-draw_maze()
-draw_mouse()
-get_neighbors()
-remove_wall()
-generate_step()
-
-pygame.quit()
+if __name__ == "__main__":
+    main()
