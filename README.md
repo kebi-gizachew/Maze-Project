@@ -54,6 +54,9 @@ This ensures every cell is connected.
 
 - Dynamic maze generation
 - Mouse movement through walls
+
+## Demo link
+https://www.loom.com/share/a43ffb57a811462f8be166b256e116f6
 - Maze solving using backtracking
 - Dead-end detection
 ## Author
